@@ -209,6 +209,7 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Y[self.idx_to_nan] = np.nan
         return Y
 
+
     
 def multi_features_outliers_dropper(X, features, method, val=None, penalty=None):
     '''
