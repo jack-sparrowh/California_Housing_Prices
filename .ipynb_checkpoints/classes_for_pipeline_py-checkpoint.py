@@ -74,6 +74,7 @@ class DataDropper(BaseEstimator, TransformerMixin):
     
     Args:
         method (str)                     - method to use when dropping the data
+        feature (str)                    - feature variable to drop data from
         val (float | int)                - value for "fixed", "flexible", and "skewness" methods.
                                            For "fixed" the value must be some point in the interval of given
                                            feature. For "flexible" method the value must be a quantile [0, 1] 
@@ -85,10 +86,11 @@ class DataDropper(BaseEstimator, TransformerMixin):
                                            the power of 0.5.
     '''
     
-    def __init__(self, method, penalty="sq_root", val=None):
+    def __init__(self, method, feature, penalty="sq_root", val=None):
         '''
         Args:
             method (str)                     - method to use when dropping the data
+            feature (str)                    - feature variable to drop data from
             val (float | int)                - value for "fixed", "flexible", and "skewness" methods.
                                                For "fixed" the value must be some point in the interval of given
                                                feature. For "flexible" method the value must be a quantile [0, 1] 
@@ -100,10 +102,12 @@ class DataDropper(BaseEstimator, TransformerMixin):
                                                the power of 0.5.
         '''
         assert(method in ['fixed', 'flexible', 'optimized', 'skewness']), 'methods available: "fixed", "flexible", "optimized", "skewness".'
+        assert(feature in col_idx_dict.keys()), f'feature must be one of : {list(col_idx_dict.keys())}'
         self.method = method
         self.val = val
+        self.feature = feature
+        self.col_index = col_idx_dict[self.feature]
         self.penalty = penalty
-        self.idx_to_nan = None
         
     def check_val(self, val):
         '''
@@ -122,22 +126,22 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Returns data points that are further (or less) than 3th quartile + IQR (or - IQR).
         
         Args:
-            X (np.ndarray) - data points
+            X (np.ndarray) - (m, n) data points
             
         Returns:
-            X (np.ndarray) - (no. of outliers) flagged outliers
+            X (np.ndarray) - (no. of outliers, n) flagged outliers
         '''
-        _iqr = iqr(X)
-        _lower_bound = np.quantile(X, 0.25) - 1.5 * _iqr
-        _upper_bound = np.quantile(X, 0.75) + 1.5 * _iqr
-        return X[(X <= _lower_bound) | (X >= _upper_bound)]
+        _iqr = iqr(X[:, self.col_index])
+        _lower_bound = np.quantile(X[:, self.col_index], 0.25) - 1.5 * _iqr
+        _upper_bound = np.quantile(X[:, self.col_index], 0.75) + 1.5 * _iqr
+        return X[(X[:, self.col_index] <= _lower_bound) | (X[:, self.col_index] >= _upper_bound), self.col_index]
     
     def fit(self, X):
         '''
         Stores boolean values for indices to keep. Also, stores the number of deleted data points.
         
         Args:
-            X (np.ndarray) - (m) data points
+            X (np.ndarray) - (m, n) data points
             
         Returns:
             self
@@ -146,17 +150,17 @@ class DataDropper(BaseEstimator, TransformerMixin):
             # make sure that fix value is specified
             self.check_val(self.val)
             # make sure that the point is in the interval of data
-            _max_val = X.max()
-            _min_val = X.min()
+            _max_val = X[:, self.col_index].max()
+            _min_val = X[:, self.col_index].min()
             assert((self.val <= _max_val) and (self.val >= _min_val)), 'the value must be in interval [min, max].'
-            self.idx_to_nan = X > self.val
+            self.idx_to_keep = X[:, self.col_index] <= self.val
             
         if self.method == 'flexible':
             # make sure that flex value is specified
             self.check_val(self.val)
             # make sure that the quantile is in [0, 1]
             assert((self.val <= 1) and (self.val >= 0)), 'the value must be in interval [0, 1].'
-            self.idx_to_nan = X > np.quantile(X, self.val)
+            self.idx_to_keep = X[:, self.col_index] <= np.quantile(X[:, self.col_index], self.val)
             
         if self.method == 'optimized':
             
@@ -167,31 +171,31 @@ class DataDropper(BaseEstimator, TransformerMixin):
                 self.penalty = 0.5
             
             loss = np.zeros(1)
-            skewness_of_data = skew(X)
+            skewness_of_data = skew(X[:, self.col_index])
             sorted_data = np.sort(self.flag_outliers(X))[::-1]
             for point, data in enumerate(sorted_data):
                 if point < skewness_of_data:
-                    loss = np.c_[loss, skew(X[X <= data]) + point ** self.penalty]
+                    loss = np.c_[loss, skew(X[X[:, self.col_index] <= data, self.col_index]) + point ** self.penalty]
                 else:
                     break
             loss = loss[loss > 0].flatten()
             self.optimization_history = loss
-            self.idx_to_nan = X > sorted_data[loss.argmin()]
+            self.idx_to_keep = X[:, self.col_index] <= sorted_data[loss.argmin()]
             
         if self.method == 'skewness':
             # make sure that skew value is specified
             self.check_val(self.val)
             # make sure that the skew value is lower than max skewness observed
-            max_skew = skew(X)
+            max_skew = skew(X[:, self.col_index])
             assert(self.val <= max_skew), f'Value for skewness is higher than the maximum skewness observed in the data: {self.val} > {round(max_skew, 1)}.'
-            sorted_data = np.sort(X)[::-1]
+            sorted_data = np.sort(X[:, self.col_index])[::-1]
             for point, data in enumerate(sorted_data):
-                skew_after_drop = skew(X[X <= data])
+                skew_after_drop = skew(X[X[:, self.col_index] <= data, self.col_index])
                 if skew_after_drop <= self.val:
-                    self.idx_to_nan = X > data
+                    self.idx_to_keep = X[:, self.col_index] <= data
                     break
         
-        self.number_deleted = self.idx_to_nan.sum()
+        self.number_deleted = X.shape[0] - self.idx_to_keep.sum()
         return self
         
     def transform(self, X):
@@ -199,15 +203,14 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Mask the data with indicies to keep.
         
         Args:
-            X (np.ndarray) - (m) data points
+            X (np.ndarray) - (m, n) data points
             
         Returns:
-            X (np.ndarray) - (m - outliers) masked dataset
-        '''
+            X (np.ndarray) - (m - outliers, n) masked dataset
+        '''        
         # return the dataset without outliers
-        Y = X.copy()
-        Y[self.idx_to_nan] = np.nan
-        return Y
+        return X[self.idx_to_keep, :]
+
 
     
 def multi_features_outliers_dropper(X, features, method, val=None, penalty=None):
