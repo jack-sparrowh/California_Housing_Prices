@@ -60,44 +60,54 @@ class AddFeatures(BaseEstimator, TransformerMixin):
     
 class DataDropper(BaseEstimator, TransformerMixin):
     '''
-    This class drops points considered outliers given the feature and method of dropping them. 
-    Available methods are:
-    "fixed"     - drops data that are <= choosen fixed threshold,
-    "flexible"  - drops data that are <= choosen quantile,
-    "optimized" - drops data with the help of a simple loss function:
-                  $L(i, p) = S(i) + i^{p}$
-                  where, i is the ith dropped data point, S(i) is the skewness after dropping
-                  the ith data point and p is the penalty. The main assumption is that with
-                  highly skewed features dropping points will monotonically lower the skewness.
-                  Adding a penalty of $i^{p}$ creates a global minimum, that we seek to find,
-    "skewness"  - drops data untill some fixed value of skewness is satisfied.
+    This class drops points considered outliers given the feature and method of 
+    dropping them. Available methods are:
+    "fixed" :
+        drops data that are <= choosen fixed threshold,
+    "flexible" :
+        drops data that are <= choosen quantile,
+    "optimized" :
+        drops data with the help of a simple loss function:$L(i, p) = S(i) + i^{p}$
+        where, i is the ith dropped data point, S(i) is the skewness after 
+        dropping the ith data point and p is the penalty. The main assumption is
+        that with highly skewed features dropping points will monotonically lower
+        the skewness. Adding a penalty of $i^{p}$ creates a global minimum, that
+        we seek to find,
+    "skewness":
+        drops data untill some fixed value of skewness is satisfied.
     
     Args:
-        method (str)                     - method to use when dropping the data
-        val (float | int)                - value for "fixed", "flexible", and "skewness" methods.
-                                           For "fixed" the value must be some point in the interval of given
-                                           feature. For "flexible" method the value must be a quantile [0, 1] 
-                                           which will specify the threshold for dropping points. For "skewness"
-                                           the value must be a minimal skewness we want to obtain, it must be
-                                           lower than the skewness of the feature itself.
-        penalty (str, default "sq_root") - specifies what penalty is added to the loss after dropping ith point.
-                                           If "linear" we take i to the 1th power. If "sq_root" i is raised to
-                                           the power of 0.5.
+        method : str
+            method to use when dropping the data
+        val : float | int
+            value for "fixed", "flexible", and "skewness" methods. For "fixed" 
+            the value must be some point in the interval of given feature. For 
+            "flexible" method the value must be a quantile [0, 1]  which will 
+            specify the threshold for dropping points. For "skewness" the value 
+            must be a minimal skewness we want to obtain, it must be lower than 
+            the skewness of the feature itself.
+        penalty : str, (default "sq_root")
+            specifies what penalty is added to the loss after dropping ith point.
+            If "linear" we take i to the 1th power. If "sq_root" i is raised to 
+            the power of 0.5.
     '''
     
     def __init__(self, method, penalty="sq_root", val=None):
         '''
         Args:
-            method (str)                     - method to use when dropping the data
-            val (float | int)                - value for "fixed", "flexible", and "skewness" methods.
-                                               For "fixed" the value must be some point in the interval of given
-                                               feature. For "flexible" method the value must be a quantile [0, 1] 
-                                               which will specify the threshold for dropping points. For "skewness"
-                                               the value must be a minimal skewness we want to obtain, it must be
-                                               lower than the skewness of the feature itself.
-            penalty (str, default "sq_root") - specifies what penalty is added to the loss after dropping ith point.
-                                               If "linear" we take i to the 1th power. If "sq_root" i is raised to
-                                               the power of 0.5.
+            method : str
+                method to use when dropping the data
+            val : float | int
+                value for "fixed", "flexible", and "skewness" methods. For "fixed" 
+                the value must be some point in the interval of given feature. For 
+                "flexible" method the value must be a quantile [0, 1]  which will 
+                specify the threshold for dropping points. For "skewness" the value 
+                must be a minimal skewness we want to obtain, it must be lower than 
+                the skewness of the feature itself.
+            penalty : str, (default "sq_root")
+                specifies what penalty is added to the loss after dropping ith point.
+                If "linear" we take i to the 1th power. If "sq_root" i is raised to 
+                the power of 0.5.
         '''
         assert(method in ['fixed', 'flexible', 'optimized', 'skewness']), 'methods available: "fixed", "flexible", "optimized", "skewness".'
         self.method = method
@@ -110,7 +120,8 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Checks if the variable val is float or int. If not it raises AssertionError.
         
         Args:
-            val (float | int) - value for "fixed", "flexible", and "skewness" methods.
+            val : float | int
+                value for "fixed", "flexible", and "skewness" methods.
             
         Raises:
             AtributeError
@@ -122,10 +133,12 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Returns data points that are further (or less) than 3th quartile + IQR (or - IQR).
         
         Args:
-            X (np.ndarray) - data points
+            X : pd.Series
+                (m, 1) data points
             
         Returns:
-            X (np.ndarray) - (no. of outliers) flagged outliers
+            X : pd.Series
+                (no. of outliers, 1) flagged outliers
         '''
         _iqr = iqr(X)
         _lower_bound = np.quantile(X, 0.25) - 1.5 * _iqr
@@ -134,10 +147,12 @@ class DataDropper(BaseEstimator, TransformerMixin):
     
     def fit(self, X):
         '''
-        Stores boolean values for indices to keep. Also, stores the number of deleted data points.
+        Stores boolean values for indices to keep. Also, stores the number of 
+        deleted data points.
         
         Args:
-            X (np.ndarray) - (m) data points
+            X : pd.Series
+                (m, 1) data points
             
         Returns:
             self
@@ -146,8 +161,7 @@ class DataDropper(BaseEstimator, TransformerMixin):
             # make sure that fix value is specified
             self.check_val(self.val)
             # make sure that the point is in the interval of data
-            _max_val = X.max()
-            _min_val = X.min()
+            _max_val, _min_val = X.max(), X.min()
             assert((self.val <= _max_val) and (self.val >= _min_val)), 'the value must be in interval [min, max].'
             self.idx_to_nan = X > self.val
             
@@ -199,10 +213,12 @@ class DataDropper(BaseEstimator, TransformerMixin):
         Mask the data with indicies to keep.
         
         Args:
-            X (np.ndarray) - (m) data points
+            X : pd.Series
+                (m, 1) data points
             
         Returns:
-            X (np.ndarray) - (m - outliers) masked dataset
+            X : pd.Series
+                (m - no. of outliers, 1) data points
         '''
         # return the dataset without outliers
         Y = X.copy()
@@ -249,41 +265,56 @@ def multi_features_outliers_dropper(X, features, method, val=None, penalty=None)
 
 class small_PCA(BaseEstimator, TransformerMixin):
     '''
-    Finds principal components of centered (not standardized) data. It does not use SVD approach.
-    The method finds weights of orthogonal projections of data points onto a subspace that is 
-    spanned by the basis constructed of orthonormal eigenvectors with highest eigenvalues. 
-    Eigenvectors and eigenvalues are obtained by eigendecomposition of covariance matrix. The size
+    Finds principal components of centered (not standardized) data. It does not 
+    use SVD approach. The method finds weights of orthogonal projections of data
+    points onto a subspace that is  spanned by the basis constructed of 
+    orthonormal eigenvectors with highest eigenvalues.  Eigenvectors and 
+    eigenvalues are obtained by eigendecomposition of covariance matrix. The size
     of the basis is specified by the value of n_components.
     
     Args:
-        n_components (int) - rank of reduced data
-        X (np.ndarray)     - (m, n) dataset
+        n_components : int
+            rank of reduced data
+        X : pd.DataFrame
+            (m, n) dataset
         
     Methods:
-        fit(X)       - estimates the orthonormal eigenbasis for the subspace
-        transform(X) - produces the weights of orthogonal projections
+        fit(X) :
+            estimates the orthonormal eigenbasis for the subspace
+        transform(X):
+            produces the weights of orthogonal projections
     '''
     
     def __init__(self, n_components=None):
         '''
         Params:
-            n_components (int) - rank of reduced data
+            n_components : int
+                rank of reduced data
+        
+        Raises:
+            AssertionError :
+                If n_components is not an integer or is lower or equal to 0
         '''
         
         # check if the number of components has the right type and is greater than 0
         assert(isinstance(n_components, int) and (n_components > 0)), f'n_components must be an integer greater than 0.'
-        
         self.n_components = n_components
         
     def fit(self, X):
         '''
-        The method finds eigendecomposition of centered data of form $Q \Lambda Q^{T}$. Then,
-        n - n_components lowest eigenvalues and eigenvectors are dropped. The columns of resulting
-        basis span the subspace in question. Also, the values of eigenvalues are stored as well
+        The method finds eigendecomposition of centered data of form 
+        $Q \Lambda Q^{T}$. Then, n - n_components lowest eigenvalues and 
+        eigenvectors are dropped. The columns of resulting basis span the 
+        subspace in question. Also, the values of eigenvalues are stored as well
         as their ratio.
         
         Params:
-            X (np.ndarray) - (m, n) dataset
+            X: pd.DataFrame
+                (m, n) dataset
+                
+        Raises:
+            AssertionError :
+                If n_components is greater or equal to the rank of the data
         '''
         
         # check if number of components is lower than the number of columns of data
@@ -302,14 +333,17 @@ class small_PCA(BaseEstimator, TransformerMixin):
     
     def transform(self, X):
         '''
-        Reduce the dataset by finding the weights of orthogonal projections on the subspace Col(Q_r).
-        Since Q_r has orthonormal columns, the weights can be obtained from $(Q_{r}^{T}X^{T})^{T} = XQ_{r}$.
+        Reduce the dataset by finding the weights of orthogonal projections on 
+        the subspace Col(Q_r). Since Q_r has orthonormal columns, the weights 
+        can be obtained from $(Q_{r}^{T}X^{T})^{T} = XQ_{r}$.
         
         Args:
-            X (np.ndarray)   - (m, n) dataset
+            X : pd.DataFrame
+                (m, n) dataset
             
         Returns:
-            X_r (np.ndarray) - (m, n_components) principal components
+            X_r : pd.DataFrame 
+                (m, n_components) principal components
         '''
         # return mean 0 results (it is not necessary at all, but the results will be the same as with sklearn's PCA)
         return (X - X.mean(axis=0)) @ self.reduced_basis
@@ -318,123 +352,130 @@ class small_PCA(BaseEstimator, TransformerMixin):
     
 class MulticollinearityHandler(BaseEstimator, TransformerMixin):
     '''
-    This class tries to deal with multicollinearity problem implementing three different methods.
-    1. Simply drop all but one feature. This method leaves the one feature that has the highest
-       correlation with the target variable.
-    2. Use small_PCA to reduce the dimention of the correlated features within a specified group.
-    3. Uses method described by Min Tsao et al. (sorce at the end) It tries to find a vector of
-       weights w that finds the overall effect of the group.
+    This class tries to deal with multicollinearity problem implementing three 
+    different methods.
+    1. Simply drop all but one feature. This method leaves the one feature that 
+       has the highest correlation with the target variable.
+    2. Use small_PCA to reduce the dimention of the correlated features within a
+       specified group.
+    3. Uses method described by Min Tsao et al. (sorce at the end) It tries to 
+       find a vector of weights w that catches the overall effect of the group.
        
-    The methods described above can be choosen by specifying the method argument, respectively:
-    "drop"          - drops all but one feature within group
-    "pca"           - uses small_PCA class
-    "gr_treatement" - uses the method of M. Tsao
-       
-    Since two highly correlated groups were recognized, there is only option to choose one of the
-    groups:
-    "first"  - ['total_rooms', 'population', 'total_bedrooms', 'households']
-    "second" - ['income_per_household', 'median_income', 'income_per_population']
+    The methods described above can be choosen by specifying the method argument,
+    respectively:
+    "drop" : 
+        drops all but one feature within a passed group
+    "pca" : 
+        uses small_PCA class
+    "gr_treatement" : 
+        uses the method of M. Tsao
     
     Args:
-        method (str)       - method to choose when reducing the data
-        group (str)        - one of ["first", "second"]
-        n_components (int) - rank of reduced data when using pca method
-        X (np.ndarray)     - (m, n) dataset
+        method : str
+            method to choose when reducing the data
+        n_components : int 
+            rank of reduced data when using 
+        X : pd.DataFrame (m, n) 
+            dataset
         
-    Methods:
-        get_indicies_for_group(group)
-            finds column numbers of features given the specified group. 
+    Methods:            
+        get_the_highest_corr_feature(X) :
+            finds the features that has the highest absolute correlation value 
+            with the target variable
             
-        get_the_least_corr_features_group(X, gropu)
-            finds the features that has the least correlation with the target variable
+        fit(X) :
+            given the selected method it proceedes with finding the indexes that 
+            should be dropped
             
-        fit(X)
-            given the selected method it proceedes with finding the indexes that should be dropped
-            
-        transform(X)
+        transform(X) :
             transforms the data using the indexes found in fit() method
             
+    ### NOTE ###
+    If any nan values are present in the dataset, using "pca" method will raise 
+    AssertionError.
+            
     Sorce:
-        Min Tsao "Group least squares regression for linear models with strongly correlated predictor
-        variables". 
+        Min Tsao "Group least squares regression for linear models with strongly 
+        correlated predictor variables". 
         DOI:      https://doi.org/10.1007/s10463-022-00841-7
         arXiv:    https://doi.org/10.48550/arXiv.1804.02499
         Accessed: 2/20/23
         
     '''    
-    def __init__(self, method, group, n_components=None):
+    def __init__(self, method, n_components=None):
         '''
         Params:
-            method (str)       - method to choose when reducing the data
-            group (str)        - one of ["first", "second"]
-            n_components (int) - rank of reduced data when using 
+            method : str       
+                method to choose when reducing the data
+            n_components: int
+                rank of reduced data when using 
+            
+        Raises:
+            AssertionError :
+                if given method is not one of the available: 
+                ["drop", "pca", "gr_treatement", "nothing"]
         '''
-        assert(method in ['drop', 'pca', 'gr_teatement']), f'Method {method} is invalid. Available methods: ["drop", "pca", "gr_treatement"].'
-        assert(group in ['first', 'second']), f'Group {group} is invalid. Please, choose one of available: ["first", "second"]. For more information consult documentation.'
+        assert(method in ['drop', 'pca', 'gr_teatement', 'nothing']), f'Method {method} is invalid. Available methods: ["drop", "pca", "gr_treatement", "nothing"].'
         self.method = method
-        self.group = group
-        self.groups = dict(first = ['total_rooms', 'population', 'total_bedrooms', 'households'],
-                           second = ['income_per_household', 'median_income', 'income_per_population'])
         self.n_components = n_components
     
-    def get_indicies_for_group(self, group):
+    def get_the_highest_corr_feature(self, X):
         '''
-        Finds column numbers of features given the specified group. The method uses a globaly specified
-        dictionary that specifies the column number given the feature name. The dictionary must be 
-        specified beforehand. The main pipeline is responsible for creating this dictionary.
+        Finds the features that has the highest absolute correlation value with 
+        the target variable.
         
         Args:
-            group (str) - one of ["first", "second"]
-        
-        Returns:
-            _indicies (list) - list of indicies that specifies the pair feature - column number
-        '''
-        
-        # create a matrix [feature_name index_number]
-        tmp_holder = np.array([*col_idx_dict.items()])
-        
-        #get the indexes for given group
-        _indicies = [
-            tmp_holder[tmp_holder[:, 0] == col, 1].astype(int)[0] 
-            for col in self.groups[group]
-        ]
-        
-        return _indicies
-    
-    def get_the_least_corr_features_idx(self, X, group):
-        '''
-        Finds the features that has the least correlation with the target variable. The method uses a 
-        globaly specified dictionary that specifies the column number given the feature name. The 
-        dictionary must be specified beforehand. The main pipeline is responsible for creating this dictionary.
-        
-        Args:
-            X (np.ndarray) - (m, n) dataset
-            group (str)    - one of ["first", "second"]
+            X : pd.DataFrame (m, n) 
+                dataset
             
         Returns:
-            _low_corr_features_idx (np.ndarray) - array of column numbers for the least correlated with
-                                                  the target variable features
+            highest_corr_feature : str
+                name of feature
+            
+        Raises:
+            AssertionError : 
+                If "median_house_value" is not present in the dataset passed, 
+                the error will be raised, as the method calculates the correlation 
+                withthis exact variable.
         '''
-        # get the group indexes
-        group_indicies = self.get_indicies_for_group(group)
-        # mask
-        X_indexed = X[:, group_indicies + [col_idx_dict['median_house_value']]]
-        # calculate correlation with the target variable
-        _correlation = np.corrcoef(X_indexed.T)[-1, :-1]
-        # get the indexes of the least correlated features
-        _low_corr_features_idx = np.array(group_indicies)[_correlation.argsort()[:-1]]
-        return _low_corr_features_idx
+        # make sure 'median_house_value' is in the columns passed
+        assert('median_house_value' in X.columns), f'"median_house_value" must be passed in order to use "drop" method.'
+        # find feature with the highest correlation with the target variable        
+        highest_corr_feature = np.abs(X.corr()).iloc[-1, :-1].sort_values().index[-1]
+        # return the feature
+        return highest_corr_feature
     
     def fit(self, X):
+        '''
+        Given the method it checks and specifies necessary values. If "drop" 
+        method is used, then get_the_highest_corr_feature method is used to find
+        the right feature to keep. If "pca" method is choosen then value for
+        n_components is checked and if the data does not contain any nan values.
         
+        Args:
+            X : pd.DataFrame (m, n)
+                dataset
+        Returns:
+            self
+            
+        Raises:
+            AssertionError :
+                If number of principal components is not specified or is greater
+                than the number of columns. The error is also raised if the
+                data contains any nan values.
+        '''
         if self.method == 'drop':
-            self.idx_to_drop = self.get_the_least_corr_features_idx(X, self.group)
+            # get the feature with the highest corr value
+            self.feature_to_keep = self.get_the_highest_corr_feature(X)
         
         if self.method == 'pca':
-            assert(self.n_components is not None), f'Specify the number of components.'
-            # get the group indexes
-            self.idx_to_reduce = self.get_indicies_for_group(self.group)
-            # pca should be done in transform
+            # check if "n_components" parameter is specified
+            assert((self.n_components is not None) and (self.n_components <= X.shape[0])), f'Specify the number of components that are lower or equan to the length of columns.'
+            # check if there are Nans in the data
+            assert(~np.isnan(X.values).flatten().any()), f'There are Nan values in the data.'
+            # if "median_house_value" is in the passed data, drop the target
+            if 'median_house_value' in X.columns:
+                X = X.drop(columns=['median_house_value'])
             
         if self.method == 'gr_treatement':
             # to be added, i have to first figure out the context of the article.
@@ -443,13 +484,35 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
+        '''
+        Given the method the method transforms the data. If "drop" is choosen
+        then only the feature with the highest absolute correlation value is 
+        left. If "pca" is choosen, then "small_PCA" class is used to find
+        the specified number of principal components.
         
+        Args:
+            X : pd.DataFrame (m, n)
+                dataset
+            
+        Returns:
+            high_feature_X : pd.Series | method="drop"
+                (m, 1) reduced data
+            X_pca_reduced : pd.Series | method="pca"
+                (m, n_components) pca reduced data
+        '''
         if self.method == 'drop':
-            return np.delete(X, self.idx_to_drop, axis=1)
+            # return series of the highly corr feature
+            high_feature_X = X.loc[:, self.feature_to_keep]
+            return high_feature_X
         
         if self.method == 'pca':
+            # use small_PCA class
             s_pca = small_PCA(n_components=self.n_components)
-            X_reduced = s_pca.fit_transform(X[:, self.idx_to_reduce])
-            X_concat = np.c_[np.delete(X, self.idx_to_reduce, axis=1),
-                             X_reduced]
-            return X_concat
+            # reduce the data
+            X_pca_reduced = s_pca.fit_transform(X)
+            # return principal components
+            return X_pca_reduced
+        
+        if self.method == 'gr_treatement':
+            #idk
+            pass
