@@ -63,9 +63,9 @@ class DataDropper(BaseEstimator, TransformerMixin):
     This class drops points considered outliers given the feature and method of 
     dropping them. Available methods are:
     "fixed" :
-        drops data that are <= choosen fixed threshold,
+        drops data points that are <= choosen fixed threshold,
     "flexible" :
-        drops data that are <= choosen quantile,
+        drops data points that are <= choosen quantile,
     "optimized" :
         drops data with the help of a simple loss function:$L(i, p) = S(i) + i^{p}$
         where, i is the ith dropped data point, S(i) is the skewness after 
