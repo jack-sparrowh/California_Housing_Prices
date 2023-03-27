@@ -21,18 +21,128 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 
 class CappedTargetDropper(BaseEstimator, TransformerMixin):
+    '''
+    This simple class deals with capped values within variables. If there are
+    capped values within the data it might be better to drop them, since there 
+    is a risk of biasing the model. If the % of capped values is low (e.g. <5%),
+    there should be no reason for not to drop the data, but every case must be
+    considered on its own.
     
-    def __init__(self, drop_max_val=True):
-        self.drop_max_val = drop_max_val
+    Even though the class is called "capped target dropper", it is able to deal 
+    with any variable with the help of small_Pipeline or just by passing given 
+    feature.
+    
+    Args:
+        drop : bool (default True)
+            Specify if the values should be dropped.
+        capped_val : float | int
+            Specify the capped value. If int is passed it will be converted to
+            float.
+            
+    Methods:
+        fit(X) :
+            Finds all the indices for which the values of the data should be 
+            converted to nans.
+        transform(X) : 
+            Given the drop parameter is true, it will convert values of selected
+            indicies to nans.
+            
+    Returns:
+        X_tmp : pd.Series | np.ndarray (1, n)
+            Series with converted capped values.
+            
+    Raises:
+        AssertionError (__init__) :
+            If drop is true but the capped_val is not specified, then the class
+            will raise the assertion error.
+        AssertionError (fit) :
+            If capped_val is not present in the data given that the drop is true
+            it will raise the asserion error and ask to specify the capped_val.
+        AssertionError (fit, transform) : 
+            If the dimention of the data is >1 then the assertion will be raised,
+            since the class handles only 1-dim data.
+    '''
+    
+    
+    def __init__(self, drop=True, capped_val=None):
+        '''
+        Args:
+            drop : bool (default True)
+                Specify if the values should be dropped.
+            capped_val : float | int
+                Specify the capped value. If int is passed it will be converted to
+                float.
+                
+        Raises:
+            AssertionError :
+                If drop is true but the capped_val is not specified, then the class
+                will raise the assertion error.
+        '''
+        # given that drop is true, check if capped_value is specified
+        if drop:
+            assert(
+                (capped_val is not None) and \
+                (isinstance(capped_val, float) or isinstance(capped_val, int))
+            ), f'If "drop" parameter is true, you must specify the value of "capped_val" parameter.'
+        
+        # convert capped_val to float, and store the values
+        self.capped_val = float(capped_val)
+        self.drop=drop
         
     def fit(self, X):
-        max_val = X.max()
-        idx_to_nan = X == max_val
+        '''
+        Finds all the indices for which the values of the data should be 
+        converted to nans.
+        
+        Args:
+            X : pd.Series | np.ndarray (1, n)
+                Vector of values for given feature.
+                
+        Returns:
+            self :
+            
+        Raises: 
+            AssertionError :
+                If capped_val is not present in the data given that the drop is true
+                it will raise the asserion error and ask to specify the capped_val.
+            AssertionError : 
+                If the dimention of the data is >1 then the assertion will be raised,
+                since the class handles only 1-dim data.
+        '''
+        # given that drop is true, check if the value of capped_val is present in the data
+        if self.drop:
+            assert((X == self.capped_val).any()), f'{self.capped_val} not in the data.'
+        
+        # check if the data passed it 1-dimentional
+        assert(X.ndim == 1), f'Data passed must be 1-dimentional.'
+        
+        # get the indicies that contains the capped_val
+        idx_to_nan = X == self.capped_val
         self.idx_to_nan = idx_to_nan
         return self
     
     def transform(self, X):
-        if self.drop_max_val:
+        '''
+        Given the drop parameter is true, it will convert values of selected
+        indicies to nans.
+        
+        Args:
+            X : pd.Series | np.ndarray (1, n)
+                Vector of values for given feature.
+        
+        Returns:
+            X_tmp : pd.Series | np.ndarray (1, n)
+            
+        Raises:
+            AssertionError : 
+                If the dimention of the data is >1 then the assertion will be raised,
+                since the class handles only 1-dim data.
+        '''
+        # check if the data is 1-dimentional
+        assert(X.ndim == 1), f'Data passed must be 1-dimentional.'
+        
+        # if drop is true convert the capped values into nans
+        if self.drop:
             X_tmp = X.copy()
             X_tmp[self.idx_to_nan] = np.nan
             return X_tmp
@@ -506,7 +616,7 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
             pass
         
         
-class small_Pipeline(BaseEstimator, TransformerMixin):
+lass small_Pipeline(BaseEstimator, TransformerMixin):
     '''
     This class helps to deal with building small pipelines to transform the data
     in different modes. Some transformers must be fitted to the training data
@@ -524,25 +634,41 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
     Methods:
         multiple_column_handle(X, transformer, list_of_cols, mode) :
             Handles multiple columns passed. It separates the set into two
-            smaller ones and handles them separately by transforming only the
-            one set and the concatenating the results. mode determines if the
+            smaller ones and handles them separately by transforming only one 
+            set and the concatenating the results. "mode" determines if the 
             transformer should be fitted on the data or to transform the data,
-            it is an internal argument that don't need to be specified.
+            it is an internal argument that don't need to be specified. If 
+            transformer is "MulticollinearityHandler", then the transformation
+            must be carried in other way, because some columns are deleted 
+            during the transformation. Thus, the final concatenation of the 
+            dataframes must be carried without specifying the names of columns.
         fit(X) :
         transform (X) :
     '''
     
     
     def __init__(self, list_of_transformers=[]):
+        '''
+        Args:
+            list_of_transformers : list of tuples (by default [])
+                List of tuples of transformer and name of column(s) fo form
+                [(transformer_1, 'col'), ..., (transformer_2, 'col')].
+                If 'col' is a list of columns then the list is passed into a
+                multiple_column_handle method that can transform each column.
+        '''
         self.list_of_transformers = list_of_transformers
         
     def multiple_column_handle(self, X, transformer, list_of_cols, mode):
         '''
-        Handles multiple columns passed. It separates the set into two
-        smaller ones and handles them separately by transforming only the
-        one set and the concatenating the results. mode determines if the
-        transformer should be fitted on the data or to transform the data,
-        it is an internal argument that don't need to be specified.
+        Handles multiple columns passed. It separates the set into two smaller 
+        ones and handles them separately by transforming only one set and then 
+        concatenating the results. "mode" determines if the transformer should 
+        be fitted on the data or to transform the data, it is an internal 
+        argument that don't need to be specified. If transformer is 
+        "MulticollinearityHandler", then the transformation must be carried in
+        other way, because some columns are deleted during the transformation. 
+        Thus, the final concatenation of the dataframes must be carried without 
+        specifying the names of columns.
         
         Args:
             X : pd.DataFrame (m, n) 
@@ -564,23 +690,43 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
                 will return concatenated DataFrame with columns specified in 
                 list_of_cols transformed.
         '''
-        
-        
+        # define the difference between all columns and list_of_columns
         diff_list = np.setdiff1d(X.columns, list_of_cols)
         
+        # split the data
         X_tmp_only_sel_cols = X[list_of_cols]
         X_tmp_rest_of_data = X[diff_list]
         
+        # given mode and transformer proceed accordingly
         if mode == 'fit':
+            
+            # fit the transformer on the splitted data
             transformer.fit(X_tmp_only_sel_cols) 
-        elif mode == 'transform':
+            
+        elif (mode == 'transform') and (transformer.__class__.__name__ != 'MulticollinearityHandler'):
+            
+            # transform the splited data, creating a pandas dataframe with
+            # the same columns as list_of_columns
             X_tmp_transformed = pd.DataFrame(transformer.transform(X_tmp_only_sel_cols),
                                              columns=list_of_cols,
                                              index=X.index)
             
+            # return the concatenated results
             return pd.concat([X_tmp_rest_of_data, X_tmp_transformed], axis=1)
-    
+        
+        elif (mode == 'transform') and (transformer.__class__.__name__ == 'MulticollinearityHandler'):
+            
+            # transform the splitted data without specifying the columns name
+            X_tmp_transformed = pd.DataFrame(transformer.transform(X_tmp_only_sel_cols),
+                                             index=X.index)
+            
+            # return the concatenated dataframe
+            return pd.concat([X_tmp_rest_of_data, X_tmp_transformed], axis=1)
+        
     def fit(self, X):
+        '''
+        dadsa
+        '''
         
         for transformer, column in self.list_of_transformers:
             if np.array(column).size == 1:
@@ -591,6 +737,9 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
+        '''
+        dasdas
+        '''
         
         X_tmp = X.copy()
         
