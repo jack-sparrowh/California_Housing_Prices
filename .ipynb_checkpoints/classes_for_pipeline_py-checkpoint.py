@@ -328,11 +328,11 @@ class DataDropper(BaseEstimator, TransformerMixin):
             #    self.penalty = 0.5
             
             loss = np.zeros(1)
-            skewness_of_data = skew(X, nan_policy='omit')
+            skewness_of_data = np.abs(skew(X, nan_policy='omit'))
             sorted_data = np.sort(self.flag_outliers(X))[::-1]
             for point, data in enumerate(sorted_data):
                 if point < skewness_of_data:
-                    loss = np.c_[loss, skew(X[X <= data]) + point ** self.penalty]
+                    loss = np.c_[loss, np.abs(skew(X[X <= data])) + point ** self.penalty]
                 else:
                     break
             loss = loss[loss > 0].flatten()
@@ -343,11 +343,11 @@ class DataDropper(BaseEstimator, TransformerMixin):
             # make sure that skew value is specified
             self.check_val(self.val)
             # make sure that the skew value is lower than max skewness observed
-            max_skew = skew(X)
+            max_skew = np.abs(skew(X))
             assert(self.val <= max_skew), f'Value for skewness is higher than the maximum skewness observed in the data: {self.val} > {round(max_skew, 1)}.'
             sorted_data = np.sort(X)[::-1]
             for point, data in enumerate(sorted_data):
-                skew_after_drop = skew(X[X <= data])
+                skew_after_drop = np.abs(skew(X[X <= data]))
                 if skew_after_drop <= self.val:
                     self.idx_to_nan = X > data
                     break
@@ -616,7 +616,7 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
             pass
         
         
-lass small_Pipeline(BaseEstimator, TransformerMixin):
+class small_Pipeline(BaseEstimator, TransformerMixin):
     '''
     This class helps to deal with building small pipelines to transform the data
     in different modes. Some transformers must be fitted to the training data
