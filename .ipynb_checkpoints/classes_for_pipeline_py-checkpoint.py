@@ -448,8 +448,8 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
             method to choose when reducing the data
         n_components : int 
             rank of reduced data when using 
-        X : pd.DataFrame (m, n) 
-            dataset
+        X : pd.DataFrame (m, j) 
+            dataset with j features that has to be treated
         
     Methods:            
         get_the_highest_corr_feature(X) :
@@ -457,11 +457,11 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
             with the target variable
             
         fit(X) :
-            given the selected method it proceedes with finding the indexes that 
+            given the selected method it proceedes with finding the indices that 
             should be dropped
             
         transform(X) :
-            transforms the data using the indexes found in fit() method
+            transforms the data using the indices found in fit() method
             
     ### NOTE ###
     If any nan values are present in the dataset, using "pca" method will raise 
@@ -500,7 +500,7 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
         
         Args:
             X : pd.DataFrame (m, n) 
-                dataset
+                dataset with j features that has to be treated
             
         Returns:
             highest_corr_feature : str
@@ -512,7 +512,7 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
                 the error will be raised, as the method calculates the correlation 
                 withthis exact variable.
         '''
-        # make sure 'median_house_value' is in the columns passed
+        # make sure target variable was passed
         assert(self.target is not None), f'Target variable must be passed as an argument in order to use "drop" method.'
         # concat data and target
         X = pd.concat([X, pd.Series(self.target, index=X.index)], axis=1)
@@ -529,8 +529,8 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
         n_components is checked and if the data does not contain any nan values.
         
         Args:
-            X : pd.DataFrame (m, n)
-                dataset
+            X : pd.DataFrame (m, j)
+                dataset with j features that has to be treated
         Returns:
             self
             
@@ -567,8 +567,8 @@ class MulticollinearityHandler(BaseEstimator, TransformerMixin):
         the specified number of principal components.
         
         Args:
-            X : pd.DataFrame (m, n)
-                dataset
+            X : pd.DataFrame (m, j)
+                dataset with j features that has to be treated
             
         Returns:
             high_feature_X : pd.Series | method="drop"
