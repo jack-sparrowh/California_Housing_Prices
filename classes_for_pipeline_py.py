@@ -305,10 +305,6 @@ class DataDropper(BaseEstimator, TransformerMixin):
         if self.method == 'optimized':
             
             assert(isinstance(self.penalty, float)), 'penalty must be a float or an integer.'
-            #if self.penalty == 'linear':
-            #    self.penalty = 1
-            #else:
-            #    self.penalty = 0.5
             
             loss = np.zeros(1)
             skewness_of_data = np.abs(skew(X, nan_policy='omit'))
