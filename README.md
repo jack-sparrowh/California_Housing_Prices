@@ -6,12 +6,12 @@
 * The main notebook with EDA and the walkthrough of my ideas is not finished, since everything is added and tested in my spare time.
 
 * To this point classes_for_pipeline contains:
-** CappedTargetDropper
-** FeaturesAdder
-** DataDropper
-** small_PCA
-** MultiCollinearityHandler
-** small_Pipeline
+- CappedTargetDropper
+- FeaturesAdder
+- DataDropper
+- small_PCA
+- MultiCollinearityHandler
+- small_Pipeline
 
 # Description
 Data used  in this repository comes from the StatLib repository. This dataset is based on data from the 1990 California census. The original dataset appeared in Kelley Pace, R., &; Barry, R. (1997). "Sparse spatial autoregressions". Statistics &amp; Probability Letters, 33(3), 291–297. 
