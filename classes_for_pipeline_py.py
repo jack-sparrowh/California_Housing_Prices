@@ -294,14 +294,14 @@ class DataDropper(BaseEstimator, TransformerMixin):
             # make sure that the point is in the interval of data
             _max_val, _min_val = X.max(), X.min()
             assert((self.val <= _max_val) and (self.val >= _min_val)), 'the value must be in interval [min, max].'
-            self.idx_to_nan = X > self.val
+            self.idx_to_keep = X[:, self.col_index] <= self.val
             
         if self.method == 'flexible':
             # make sure that flex value is specified
             self.check_val(self.val)
             # make sure that the quantile is in [0, 1]
             assert((self.val <= 1) and (self.val >= 0)), 'the value must be in interval [0, 1].'
-            self.idx_to_nan = X > np.quantile(X, self.val)
+            self.idx_to_keep = X[:, self.col_index] <= np.quantile(X[:, self.col_index], self.val)
             
         if self.method == 'optimized':
             
@@ -315,7 +315,7 @@ class DataDropper(BaseEstimator, TransformerMixin):
                     break
             loss = loss[loss > 0].flatten()
             self.optimization_history = loss
-            self.idx_to_nan = X > sorted_data[loss.argmin()]
+            self.idx_to_keep = X[:, self.col_index] <= sorted_data[loss.argmin()]
             
         if self.method == 'skewness':
             # make sure that skew value is specified
@@ -323,14 +323,14 @@ class DataDropper(BaseEstimator, TransformerMixin):
             # make sure that the skew value is lower than max skewness observed
             max_skew = np.abs(skew(X))
             assert(self.val <= max_skew), f'Value for skewness is higher than the maximum skewness observed in the data: {self.val} > {round(max_skew, 1)}.'
-            sorted_data = np.sort(X)[::-1]
+            sorted_data = np.sort(X[:, self.col_index])[::-1]
             for point, data in enumerate(sorted_data):
                 skew_after_drop = np.abs(skew(X[X <= data]))
                 if skew_after_drop <= self.val:
-                    self.idx_to_nan = X > data
+                    self.idx_to_keep = X[:, self.col_index] <= data
                     break
         
-        self.number_deleted = self.idx_to_nan.sum()
+        self.number_deleted = X.shape[0] - self.idx_to_keep.sum()
         return self
         
     def transform(self, X):
