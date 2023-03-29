@@ -643,7 +643,10 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
             during the transformation. Thus, the final concatenation of the 
             dataframes must be carried without specifying the names of columns.
         fit(X) :
+            Fits given transformers to the data specified by the columns passed.
         transform (X) :
+            Transforms the data specified by the passed columns. The size of
+            returned dataframe is determined by the kind of transformer passed.
     '''
     
     
@@ -725,7 +728,14 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
         
     def fit(self, X):
         '''
-        dadsa
+        Fits given transformers to the data specified by the columns passed.
+        
+        Args:
+            X : pd.DataFrame (m, n)
+                Datapoints
+                
+        Returns:
+            self
         '''
         
         for transformer, column in self.list_of_transformers:
@@ -738,7 +748,16 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
     
     def transform(self, X):
         '''
-        dasdas
+        Transforms the data specified by the passed columns. The size of returned
+        dataframe is determined by the kind of transformer passed.
+        
+        Args:
+            X : pd.DataFrame (m, n)
+                Datapoints
+                
+        Returns:
+            X_tmp : pd.DataFrame (m, j)
+                Transformed dataset
         '''
         
         X_tmp = X.copy()
