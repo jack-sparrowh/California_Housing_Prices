@@ -235,6 +235,7 @@ class DataDropper(BaseEstimator, TransformerMixin):
              of penalty the more points will be dropped.
         '''
         assert(method in ['fixed', 'flexible', 'optimized', 'skewness']), 'methods available: "fixed", "flexible", "optimized", "skewness".'
+        assert(float(penalty)), f'penalty must be a float or an integer.'
         self.method = method
         self.val = val
         self.penalty = float(penalty)
@@ -303,8 +304,6 @@ class DataDropper(BaseEstimator, TransformerMixin):
             self.idx_to_nan = X > np.quantile(X, self.val)
             
         if self.method == 'optimized':
-            
-            assert(isinstance(self.penalty, float)), 'penalty must be a float or an integer.'
             
             loss = np.zeros(1)
             skewness_of_data = np.abs(skew(X, nan_policy='omit'))
