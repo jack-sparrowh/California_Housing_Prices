@@ -1,24 +1,7 @@
-import os
-import requests
-import csv
-import re
-
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
-
 from sklearn.base import BaseEstimator, TransformerMixin
-
 from scipy.stats import iqr, skew
-
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
 
 class CappedTargetDropper(BaseEstimator, TransformerMixin):
     '''
