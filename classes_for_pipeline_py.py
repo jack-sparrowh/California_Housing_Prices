@@ -5,11 +5,7 @@ from scipy.stats import iqr, skew
 
 class CappedTargetDropper(BaseEstimator, TransformerMixin):
     '''
-    This simple class deals with capped values within variables. If there are
-    capped values within the data it might be better to drop them, since there 
-    is a risk of biasing the model. If the % of capped values is low (e.g. <5%),
-    there should be no reason for not to drop the data, but every case must be
-    considered on its own.
+    This simple class deals with capped values within variables. 
     
     Even though the class is called "capped target dropper", it is able to deal 
     with any variable with the help of small_Pipeline or just by passing given 
