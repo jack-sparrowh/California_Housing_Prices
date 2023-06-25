@@ -5,33 +5,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer, StandardScaler
 from scipy.stats import iqr, skew
 
-def fast_pipeline(X):
-    '''
-    Fast pipeline, that does not allow for any control via argument assignment.
-    It only takes care of numerical data within the provided data. It will be
-    transformer to python's class later.
-    '''
-    # simple imputer with median strategy
-    imputer_columns = np.setdiff1d(X.columns, 'ocean_proximity').tolist()
-    imputer_pipeline = small_Pipeline([(SimpleImputer(strategy='median'), imputer_columns)])
-    X = imputer_pipeline.fit_transform(X)
-    
-    # add features
-    X = FeaturesAdder().fit_transform(X)
-    
-    # dropping outliers pipeline
-    sp = small_Pipeline([
-        (CappedTargetDropper(capped_val=X['median_house_value'].max()), 'median_house_value'),
-        (DataDropper(method='optimized'), 'income_per_household'),
-        (DataDropper(method='optimized'), 'population_per_household'),
-        (DataDropper(method='optimized', penalty=0.25), 'rooms_per_household'),
-        (DataDropper(method='optimized', penalty=0.25), 'rooms_per_age')
-    ])
-    
-    X = sp.fit_transform(X)
-    X = X.dropna()
-    
-    return X
 
 class CappedTargetDropper(BaseEstimator, TransformerMixin):
     '''
