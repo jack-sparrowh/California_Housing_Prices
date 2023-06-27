@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import PowerTransformer, StandardScaler
 from scipy.stats import iqr, skew
+
 
 class CappedTargetDropper(BaseEstimator, TransformerMixin):
     '''
@@ -747,3 +750,70 @@ class small_Pipeline(BaseEstimator, TransformerMixin):
                 X_tmp = self.multiple_column_handle(X_tmp, transformer, column, 'transform')
                 
         return X_tmp
+    
+# NO DOC FOR NOW
+class PreprocessPipeline(BaseEstimator, TransformerMixin):
+    
+    '''any transformer can be access via 
+    PreprocessPipeline.name_of_transformer.list_of_transformers[0][0].statistic_in_question'''
+    
+    def __init__(self):
+        self.median_imputer = small_Pipeline([
+            (SimpleImputer(strategy='median'), 
+             ['longitude', 'latitude', 'housing_median_age',
+              'total_rooms', 'total_bedrooms', 'population', 
+              'households', 'median_income', 'median_house_value'])
+        ])
+        self.feature_adder = FeaturesAdder()
+        self.outliers_dropper = small_Pipeline([
+            (CappedTargetDropper(capped_val=500000.0), 'median_house_value'),
+            (DataDropper(method='optimized'), 'income_per_household'),
+            (DataDropper(method='optimized'), 'population_per_household'),
+            (DataDropper(method='optimized', penalty=0.25), 'rooms_per_household'),
+            (DataDropper(method='optimized', penalty=0.25), 'rooms_per_age')
+        ])
+        self.standardizer = small_Pipeline([
+            (StandardScaler(), 
+             ['longitude', 'latitude'])
+        ])
+        self.power_transformer = small_Pipeline([
+            (PowerTransformer(),
+             ['housing_median_age', 'total_rooms',
+              'total_bedrooms', 'population', 'households', 'median_income',
+              'median_house_value', 'rooms_per_household', 'income_per_household',
+              'income_per_population', 'bedrooms_per_rooms',
+              'population_per_household', 'rooms_per_age'])
+        ])
+        
+    def fit(self, X):
+        
+        self.median_imputer.fit(X)
+        
+        # since all the later methods are obtained with nans imputed and added
+        # new features we have to transform X and add new features,
+        # then fit the other classes
+        X = self.median_imputer.transform(X)
+        X = self.feature_adder.fit_transform(X)
+        
+        self.outliers_dropper.fit(X)
+        self.standardizer.fit(X)
+        self.power_transformer.fit(X)
+        
+        return self
+    
+    def transform(self, X):
+        
+        X = self.median_imputer.transform(X)
+        X = self.feature_adder.fit_transform(X)
+        X = self.outliers_dropper.fit_transform(X)
+        X = X.dropna()
+        X = self.standardizer.transform(X)
+        X = self.power_transformer.transform(X)
+        
+        X_cat = X['ocean_proximity'].copy()
+        X_num = X.drop(columns=['ocean_proximity'])
+        
+        X_cat.loc[X_cat == 'ISLAND'] = np.nan
+        X_merged = pd.merge(X_num, pd.get_dummies(X_cat, drop_first=True), left_index=True, right_index=True)
+        
+        return X_merged
