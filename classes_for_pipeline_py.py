@@ -810,6 +810,8 @@ class PreprocessPipeline(BaseEstimator, TransformerMixin):
         X_num = X.drop(columns=['ocean_proximity'])
         
         X_cat.loc[X_cat == 'ISLAND'] = np.nan
-        X_merged = pd.merge(X_num, pd.get_dummies(X_cat, drop_first=True), left_index=True, right_index=True)
+        X_merged = pd.merge(X_num, 
+                            pd.get_dummies(X_cat, drop_first=True), 
+                            left_index=True, right_index=True)
         
         return X_merged
